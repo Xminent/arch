@@ -87,6 +87,9 @@ packages+=(
 packages+=(
     "xfce"
     "xfce4-goodies"
+    "lightdm"
+    "lightdm-gtk-greeter"
+    "accountsservice"
 )
 
 # KDE + Plasma
@@ -132,6 +135,7 @@ packages+=(
     "unzip"
     "unrar"
     "man"
+    "man-pages"
     "tree"
     "fzf"
     "mesa"
@@ -143,6 +147,7 @@ packages+=(
     "make"
     "neovim"
     "nano"
+    "nano-syntax-highlighting"
     "ntfs-3g"
     "kitty"
     "maim"
@@ -154,6 +159,8 @@ packages+=(
     "konsole"
     "dolphin"
     "neofetch" # very essential
+    "hwinfo"
+    
 )
 
 # Fonts
