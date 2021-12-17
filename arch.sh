@@ -235,7 +235,7 @@ else
     microcode="intel-ucode"
 fi
 
-arch-chroot /mnt pacman -S $microcode
+arch-chroot /mnt pacman -S $microcode --noconfirm --needed
 
 # Graphics Drivers find and install
 if lspci | grep -E "NVIDIA|GeForce"; then
