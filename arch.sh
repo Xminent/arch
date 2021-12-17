@@ -1,3 +1,5 @@
+#!/usr/bin/bash
+
 # Cleaning the TTY.
 clear
 
@@ -61,7 +63,7 @@ else
     mount -t btrfs "/dev/""${selected_disk}""3" /mnt
 fi
 
-ls /mnt | xargs btrfs subvolume delete
+find /mnt -maxdepth 1 -print0 | xargs btrfs subvolume delete
 btrfs subvolume create /mnt/@
 umount /mnt
 
@@ -71,6 +73,49 @@ mkdir /mnt/boot
 mkdir /mnt/boot/efi
 mount -t vfat -L EFIBOOT /mnt/boot/
 
+base_packages=()
+
+# Base System Installation (pacstrap)
+base_packages+=(
+    "base"
+    "base-devel"
+    "linux"
+    "linux-headers"
+    "linux-firmware"
+)
+
+# Install each package with pacstrap /mnt
+for package in "${base_packages[@]}"; do
+    print "Installing $package"
+    pacstrap /mnt "$package" --noconfirm --needed
+done
+
+print "Finished installing base system."
+
+# generating fstab
+print "Generating fstab"
+genfstab -U /mnt >> /mnt/etc/fstab
+
+if [[ ! -d "/sys/firmware/efi" ]]; then # if not UEFI
+    print "Detected BIOS"
+    arch-chroot /mnt grub-install --boot-directory=/mnt/boot /dev/"${selected_disk}"
+fi
+
+# enabled [multilib] repo on installed system
+print "Enabling [multilib] repo"
+arch-chroot /mnt zsh -c 'echo "[multilib]" >> /etc/pacman.conf'
+arch-chroot /mnt zsh -c 'echo "Include = /etc/pacman.d/mirrorlist" >> /etc/pacman.conf'
+
+# adding makepkg optimizations
+print "Adding makepkg optimizations"
+arch-chroot /mnt sed -i -e 's/#MAKEFLAGS="-j2"/MAKEFLAGS=-j'"$(nproc --ignore 1)"'/' -e 's/-march=x86-64 -mtune=generic/-march=native/' -e 's/xz -c -z/xz -c -z -T '"$(nproc --ignore 1)"'/' /etc/makepkg.conf
+arch-chroot /mnt sed -i -e 's/!ccache/ccache/g' /etc/makepkg.conf
+
+# updating repo status
+print "Updating repo status"
+arch-chroot /mnt pacman -Sy --noconfirm
+
+# Essential Packages (pacman)
 packages=()
 
 # Display manager
@@ -85,7 +130,7 @@ packages+=(
 
 # Desktop environment
 packages+=(
-    "xfce"
+    "xfce4"
     "xfce4-goodies"
     "lightdm"
     "lightdm-gtk-greeter"
@@ -116,7 +161,9 @@ packages+=(
     "linux-firmware"
     "os-prober"
     "efibootmgr"
+    "dosftools"
     "grub"
+    "grub-customizer"
     "sudo"
     "automake"
     "autoconf"
@@ -124,6 +171,7 @@ packages+=(
     "git"
     "zsh"
     "cpupower"
+    "htop"
     "cronie"
     "pulseaudio"
     "pulseaudio-alsa"
@@ -174,23 +222,8 @@ packages+=(
     "ttf-roboto"
     "ttf-cascadia-code"
     "ttf-opensans"
+    "capitaine-cursors"
 )
-
-# Graphics Drivers find and install
-if lspci | grep -E "NVIDIA|GeForce"; then
-    pacstrap /mnt nvidia nvidia-utils
-    nvidia-xconfig
-    elif lspci | grep -E "Radeon"; then
-    packages+=("xf86-video-amdgpu")
-    elif lspci | grep -E "Integrated Graphics Controller"; then
-    packages+=(
-        "libva-intel-driver"
-        "libvdpau-va-gl"
-        "lib32-vulkan-intel vulkan-intel"
-        "libva-intel-driver"
-        "libva-utils"
-    )
-fi
 
 # Microcode
 CPU=$(grep vendor_id /proc/cpuinfo)
@@ -202,9 +235,17 @@ else
     microcode="intel-ucode"
 fi
 
-packages+=(
-    "${microcode}"
-)
+arch-chroot /mnt pacman -S $microcode
+
+# Graphics Drivers find and install
+if lspci | grep -E "NVIDIA|GeForce"; then
+    arch-chroot /mnt pacman -S nvidia nvidia-utils --noconfirm --needed
+    nvidia-xconfig
+    elif lspci | grep -E "Radeon"; then
+    arch-chroot /mnt pacman -S xf86-video-amdgpu --noconfirm --needed
+    elif lspci | grep -E "Integrated Graphics Controller"; then
+    arch-chroot /mnt pacman -S libva-intel-driver libvdpau-va-gl lib32-vulkan-intel vulkan-intel libva-intel-driver libva-utils --noconfirm --needed
+fi
 
 # Virtualization Check
 hypervisor=$(systemd-detect-virt)
@@ -242,28 +283,9 @@ esac
 # Install each package with pacstrap /mnt
 for package in "${packages[@]}"; do
     print "Installing $package"
-    pacstrap /mnt "$package" --noconfirm --needed
+    arch-chroot /mnt pacman -S "$package" --noconfirm --needed
 done
-print "Finished installing packages"
-
-# generating fstab
-print "Generating fstab"
-genfstab -U /mnt >> /mnt/etc/fstab
-
-
-if [[ ! -d "/sys/firmware/efi" ]]; then # if not UEFI
-    print "Detected BIOS"
-    arch-chroot /mnt grub-install --boot-directory=/mnt/boot /dev/"${selected_disk}"
-fi
-
-# enabled [multilib] repo on installed system
-print "Enabling [multilib] repo"
-arch-chroot /mnt zsh -c 'echo "[multilib]" >> /etc/pacman.conf'
-arch-chroot /mnt zsh -c 'echo "Include = /etc/pacman.d/mirrorlist" >> /etc/pacman.conf'
-
-# updating repo status
-print "Updating repo status"
-arch-chroot /mnt pacman -Syyy
+print "Finished installing essential packages"
 
 # setting right timezone based off location
 print "Setting timezone"
@@ -394,11 +416,6 @@ arch-chroot /mnt systemctl enable cronie.service
 arch-chroot /mnt systemctl enable sshd.service
 arch-chroot /mnt systemctl enable fstrim.timer
 arch-chroot /mnt systemctl enable ufw.service
-
-# adding makepkg optimizations
-print "Adding makepkg optimizations"
-arch-chroot /mnt sed -i -e 's/#MAKEFLAGS="-j2"/MAKEFLAGS=-j'$(nproc --ignore 1)'/' -e 's/-march=x86-64 -mtune=generic/-march=native/' -e 's/xz -c -z/xz -c -z -T '$(nproc --ignore 1)'/' /etc/makepkg.conf
-arch-chroot /mnt sed -i -e 's/!ccache/ccache/g' /etc/makepkg.conf
 
 # installing oh-my-zsh
 # print "Installing oh-my-zsh"
