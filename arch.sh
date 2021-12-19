@@ -119,9 +119,10 @@ arch-chroot /mnt pacman -Sy --noconfirm
 print "Please select your desired desktop environment:"
 print "1. KDE Plasma"
 print "2. XFCE"
+print "3. None (you want an install without a desktop environment)"
 
 # set the user's choice of desktop environment
-read -rp "Enter your choice [1-2]: " de_choice
+read -rp "Enter your choice [1-3]: " de_choice
 
 # essential packages (pacman)
 packages=()
@@ -145,7 +146,7 @@ case "${de_choice}" in
             "plasma-desktop"
             "plasma-nm"
         )
-        desktop_env="plasma"
+        desktop_env="kde"
         ;;
     # case 2: xfce
     2)
@@ -156,6 +157,10 @@ case "${de_choice}" in
             "xfce4-goodies"
         )
         desktop_env="xfce"
+        ;;
+    3)
+        # no desktop environment
+        desktop_env="none"
         ;;
     *)
         # default to kde plasma
@@ -172,10 +177,14 @@ esac
 #     "lightdm-gtk-greeter"
 #     "lightdm-gtk-greeter-settings"
 #     "accountsservice"
-packages+=(
-    "sddm"
-    "picom"
-)
+
+# if desktop_env is not equal to "none"
+if [[ "${desktop_env}" != "none" ]]; then
+    packages+=(
+        "sddm"
+        "picom"
+    )
+fi
 
 # base system installation
 packages+=(
@@ -422,7 +431,8 @@ userpackages+=(
 # installing user packages
 for package in "${userpackages[@]}"; do
     print "Installing $package"
-    arch-chroot /mnt yay -S "$package" --noconfirm --needed
+    arch-chroot /mnt sudo -u xminent /bin/zsh -c "yay -S $package --noconfirm --needed"
+    press_any_key
 done
 
 # making services start at boot
@@ -436,8 +446,13 @@ if [[ -f "/mnt/etc/dhcpcd.conf" ]]; then
 fi
 
 arch-chroot /mnt systemctl enable NetworkManager.service
-# arch-chroot /mnt systemctl enable lightdm.service
-arch-chroot /mnt systemctl enable sddm.service
+
+# check if desktop_env is not "none"
+if [[ $desktop_env != "none" ]]; then
+    # arch-chroot /mnt systemctl enable lightdm.service
+    arch-chroot /mnt systemctl enable sddm.service
+fi
+
 arch-chroot /mnt systemctl enable cronie.service
 arch-chroot /mnt systemctl enable sshd.service
 arch-chroot /mnt systemctl enable fstrim.timer
@@ -462,14 +477,16 @@ arch-chroot /mnt sudo -u xminent /bin/zsh -c "cd ~ && git clone https://github.c
 
 # install colorls with ruby
 print "Installing colorls with ruby"
-# check if ruby is installed
-if [[ -f "/mnt/usr/bin/ruby" ]]; then
-    print "Ruby is installed"
-    arch-chroot /mnt sudo -u xminent /bin/zsh -c "cd ~ && gem install colorls"
-    # add "colorscript random" to top of .zshrc
-    print "Adding 'colorscript random' to top of .zshrc"
-    arch-chroot /mnt sudo -u xminent /bin/zsh -c "sed -i '1s/^/colorscript random\n/' /home/xminent/.zshrc"
-fi
+
+# install colorls
+arch-chroot /mnt sudo -u xminent /bin/zsh -c "cd ~ && gem install colorls"
+
+# git clone the dotfiles
+print "Cloning dotfiles"
+arch-chroot /mnt sudo -u xminent /bin/zsh -c "cd ~ && git clone https://github.com/Xminent/arch.git"
+# copy dotfiles to home directory
+print "Copying dotfiles to home directory"
+arch-chroot /mnt sudo -u xminent /bin/zsh -c "cd ~ && cp -r arch/.* ~/"
 
 # create folder for screenshots
 print "Creating folder for screenshots"
@@ -490,10 +507,9 @@ arch-chroot /mnt sed -i -e 's/#VerbosePkgLists/VerbosePkgLists/g' /etc/pacman.co
 
 # unload the pcspkr module
 print "Blacklist the pcspkr module"
-arch-chroot /mnt sudo -u xminent /bin/zsh -c 'echo "blacklist pcspkr" >> /etc/modprobe.d/nobeep.conf'
+arch-chroot /mnt sudo /bin/zsh -c 'echo "blacklist pcspkr" >> /etc/modprobe.d/nobeep.conf'
 
 if [ $desktop_env == "xfce" ]; then
-    # customize xfce4
     # changing cursor theme
     arch-chroot /mnt sudo -u xminent /bin/zsh -c 'xfconf-query -c xsettings -p /Gtk/CursorThemeName -s "capitaine-cursors"'
     # changing system font
@@ -504,6 +520,18 @@ if [ $desktop_env == "xfce" ]; then
     arch-chroot /mnt sudo -u xminent /bin/zsh -c 'xfconf-query -c xfwm4 -p /general/use_compositing -s false'
     # add picom to startup applications
     arch-chroot /mnt sudo -u xminent /bin/zsh -c 'xfconf-query -c xfce4-session -p /sessions/xfce4-session/screen0/monitor0/workspace0/last-application -s picom'
+
+elif [ $desktop_env == "kde" ]; then
+    # install konsave using pip
+    print "Installing konsave using pip"
+    arch-chroot /mnt sudo -u xminent /bin/zsh -c 'pip install konsave'
+    # import konsave profile
+    print "Importing konsave profile"
+    arch-chroot /mnt sudo -u xminent /bin/zsh -c 'konsave -i ~/xminent.knsv'
+    sleep 1
+    # apply the profile
+    print "Applying the profile"
+    arch-chroot /mnt sudo -u xminent /bin/zsh -c 'konsave -a xminent'
 fi
 
 # unmounting all mounted partitions
