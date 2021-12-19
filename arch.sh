@@ -9,6 +9,7 @@ print () {
 }
 
 # press any key to continue ...
+# was useful for debugging but considering removal.
 press_any_key () {
     print "Press any key to continue ..."
     read -n 1 -s -r
@@ -374,18 +375,14 @@ print "Setting system language"
 arch-chroot /mnt echo "LANG=en_US.UTF-8" >> /mnt/etc/locale.conf
 
 # setting machine name
-print "Setting machine name"
-arch-chroot /mnt echo "archvm" >> /mnt/etc/hostname
+print "Enter a name for your machine: "
+read -r hostname
+arch-chroot /mnt echo "$hostname" >> /mnt/etc/hostname
 
-# setting hosts file
-# print "Setting hosts file"
-# arch-chroot /mnt echo "127.0.0.1 localhost" >> /mnt/etc/hosts
-# arch-chroot /mnt echo "::1 localhost" >> /mnt/etc/hosts
-# arch-chroot /mnt echo "127.0.1.1 archvm.localdomain archvm" >> /mnt/etc/hosts
 {
     arch-chroot /mnt echo "127.0.0.1 localhost" 
     arch-chroot /mnt echo "::1 localhost"
-    arch-chroot /mnt echo "127.0.1.1 archvm.localdomain archvm"
+    arch-chroot /mnt echo "127.0.1.1 $hostname.localdomain $hostname"
 } >> /mnt/etc/hosts
 
 # Configuring /etc/mkinitcpio.conf.
@@ -434,8 +431,8 @@ print "Creating grub config"
 arch-chroot /mnt grub-mkconfig -o /boot/grub/grub.cfg
 
 # changing governor to performance
-# print "Changing governor to performance"
-# arch-chroot /mnt echo "governor='performance'" >> /mnt/etc/default/cpupower
+print "Changing governor to performance"
+arch-chroot /mnt echo "governor='performance'" >> /mnt/etc/default/cpupower
 
 print "Installing yay"
 arch-chroot /mnt sudo -u "$username" git clone https://aur.archlinux.org/yay.git /home/"$username"/yay_tmp_install
@@ -454,7 +451,6 @@ userpackages+=(
 for package in "${userpackages[@]}"; do
     print "Installing $package"
     arch-chroot /mnt sudo -u "$username" /bin/zsh -c "yay -S $package --noconfirm --needed"
-    press_any_key
 done
 
 # making services start at boot
@@ -507,7 +503,7 @@ arch-chroot /mnt sudo -u "$username" /bin/zsh -c "cd ~ && gem install colorls"
 
 # git clone the dotfiles
 print "Cloning dotfiles"
-arch-chroot /mnt sudo -u "$username" /bin/zsh -c "cd ~ && git clone https://github.com/$username/arch.git"
+arch-chroot /mnt sudo -u "$username" /bin/zsh -c "cd ~ && git clone https://github.com/xminent/arch.git"
 # copy dotfiles to home directory
 print "Copying dotfiles to home directory"
 arch-chroot /mnt sudo -u "$username" /bin/zsh -c "cd ~ && cp -r arch/. ~/"
