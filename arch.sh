@@ -51,6 +51,18 @@ pacman -S fzf --noconfirm
 # open dialog for disk selection
 selected_disk=$(sudo fdisk -l | grep 'Disk /dev/' | awk '{print $2,$3,$4}' | sed 's/,$//' | fzf | sed -e 's/\/dev\/\(.*\):/\1/' | awk '{print $1}')
 
+# prompt for hostname, root password, username, and user password, so the script can be run without user interaction.
+print "Enter a name for your machine: "
+read -r hostname
+
+print "Enter root password: "
+read -r root_password
+
+username_prompt
+
+print "Enter password for $username: "
+read -r user_password
+
 # disk prep
 sgdisk -Z /dev/"${selected_disk}"         # zap all on disk
 sgdisk -a 2048 -o /dev/"${selected_disk}" # new gpt disk 2048 alignment
@@ -417,8 +429,6 @@ print "Setting system language"
 arch-chroot /mnt echo "LANG=en_US.UTF-8" >>/mnt/etc/locale.conf
 
 # setting machine name
-print "Enter a name for your machine: "
-read -r hostname
 arch-chroot /mnt echo "$hostname" >>/mnt/etc/hostname
 
 {
@@ -445,20 +455,13 @@ arch-chroot /mnt sed -i -e 's/block filesystems/block lvm2 filesystems/g' /etc/m
 arch-chroot /mnt mkinitcpio -p linux
 
 # setting root password
-print "Enter root password: "
-read -r root_password
 arch-chroot /mnt sudo -u root /bin/zsh -c "echo -e $root_password'\n'$root_password | passwd root"
-
-# prompt the user for a username
-username_prompt
 
 # making user $username
 print "Making user $username"
 arch-chroot /mnt useradd -m -G wheel -s /bin/zsh "$username"
 
 # setting $username password
-print "Enter password for $username: "
-read -r user_password
 arch-chroot /mnt sudo -u root /bin/zsh -c "echo -e $user_password'\n'$user_password | passwd $username"
 
 # installing grub
@@ -570,6 +573,7 @@ if [ $desktop_env == "kde" ]; then
     # install konsave using pip
     print "Installing konsave using pip"
     arch-chroot /mnt sudo -u "$username" /bin/zsh -c 'pip install konsave'
+    # import and apply the konsave config
     arch-chroot /mnt sudo -u "$username" /bin/zsh -c "export PATH=$PATH:~/.local/bin && konsave -i ~/xminent.knsv && konsave -a xminent "
 fi
 
