@@ -466,6 +466,8 @@ arch-chroot /mnt sudo -u xminent /bin/zsh -c 'cd ~ && curl -O https://raw.github
 print "Installing powerlevel10k"
 arch-chroot /mnt sudo -u xminent /bin/zsh -c "cd ~ && git clone https://github.com/romkatv/powerlevel10k.git $ZSH_CUSTOM/themes/powerlevel10k"
 
+press_any_key
+
 # install zsh-autosuggestions
 print "Installing zsh-autosuggestions"
 
@@ -486,14 +488,14 @@ print "Cloning dotfiles"
 arch-chroot /mnt sudo -u xminent /bin/zsh -c "cd ~ && git clone https://github.com/Xminent/arch.git"
 # copy dotfiles to home directory
 print "Copying dotfiles to home directory"
-arch-chroot /mnt sudo -u xminent /bin/zsh -c "cd ~ && cp -r arch/.* ~/"
+arch-chroot /mnt sudo -u xminent /bin/zsh -c "cd ~ && cp -r arch/. ~/"
 
 # create folder for screenshots
 print "Creating folder for screenshots"
 arch-chroot /mnt sudo -u xminent mkdir /home/xminent/Screenshots
 
-# create pictures folder, secrets folder and moving default wallpaper
-print "Creating pictures folder, secrets folder and moving default wallpaper"
+# create pictures folder, secrets folder, and wallpapers folder
+print "Creating pictures folder, secrets folder and wallpaper folder"
 arch-chroot /mnt sudo -u xminent mkdir /home/xminent/Pictures/
 arch-chroot /mnt sudo -u xminent mkdir /home/xminent/.secrets/
 arch-chroot /mnt sudo -u xminent mkdir /home/xminent/Pictures/wallpapers/
