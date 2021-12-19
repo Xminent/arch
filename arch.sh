@@ -1,9 +1,9 @@
 #!/usr/bin/bash
 
-# Cleaning the TTY.
+# cleaning the TTY.
 clear
 
-# Pretty print
+# pretty print
 print () {
     echo -e "\e[1m\e[93m[ \e[92m•\e[93m ] \e[4m$1\e[0m"
 }
@@ -24,7 +24,7 @@ print "╚═╝░░╚═╝╚═╝░░╚═╝░╚════╝░�
 print "Welcome to an easy to use, open source, and free to use,"
 print "install script for Arch Linux."
 
-# Enable parallel downloading.
+# enable parallel downloading.
 sed -i 's/^#Para/Para/' /etc/pacman.conf
 
 # syncing system datetime
@@ -75,7 +75,7 @@ mount -t vfat -L EFIBOOT /mnt/boot/
 
 base_packages=()
 
-# Base System Installation (pacstrap)
+# base system installation (pacstrap)
 base_packages+=(
     "base"
     "base-devel"
@@ -84,7 +84,7 @@ base_packages+=(
     "linux-firmware"
 )
 
-# Install each package with pacstrap /mnt
+# install each package with pacstrap /mnt
 for package in "${base_packages[@]}"; do
     print "Installing $package"
     pacstrap /mnt "$package" --noconfirm --needed
@@ -115,10 +115,18 @@ arch-chroot /mnt sed -i -e 's/!ccache/ccache/g' /etc/makepkg.conf
 print "Updating repo status"
 arch-chroot /mnt pacman -Sy --noconfirm
 
-# Essential Packages (pacman)
+# ask the user for their desired desktop environment
+print "Please select your desired desktop environment:"
+print "1. KDE Plasma"
+print "2. XFCE"
+
+# set the user's choice of desktop environment
+read -rp "Enter your choice [1-3]: " de_choice
+
+# essential packages (pacman)
 packages=()
 
-# Display manager
+# display manager
 packages+=(
     "xorg"
     "xorg-server"
@@ -128,30 +136,47 @@ packages+=(
     "xorg-xinit"
 )
 
-# Desktop environment
+case "${de_choice}" in
+    1)
+        # install kde plasma
+        print "Installing KDE Plasma"
+        packages+=(
+            "plasma-meta"
+            "plasma-desktop"
+            "plasma-nm"
+        )
+        desktop_env="plasma"
+        ;;
+    # case 2: xfce
+    2)
+        # install xfce
+        print "Installing XFCE"
+        packages+=(
+            "xfce4"
+            "xfce4-goodies"
+        )
+        desktop_env="xfce"
+        ;;
+    *)
+        # default to kde plasma
+        packages+=(
+            "plasma-meta"
+            "plasma-desktop"
+            "plasma-nm"
+        )
+        ;;
+esac
+
+# greeter and display manager
 packages+=(
-    "xfce4"
-    "xfce4-goodies"
     "lightdm"
     "lightdm-gtk-greeter"
+    "lightdm-gtk-greeter-settings"
     "accountsservice"
+    "picom"
 )
 
-# KDE + Plasma
-# "plasma-desktop"
-# "plasma-meta"
-# "plasma-nm"
-# "sddm"
-# "sddm-kcm"
-# "kdeplasma-addons"
-# "i3-gaps"
-# "i3status"
-# "dmenu"
-# "rofi"
-# "compton"
-# "feh"
-
-# Base system installation
+# base system installation
 packages+=(
     "base"
     "base-devel"
@@ -208,10 +233,20 @@ packages+=(
     "dolphin"
     "neofetch" # very essential
     "hwinfo"
-    
 )
 
-# Fonts
+# languages
+# packages+=(
+#     "ruby"
+#     "nodejs"
+#     "python"
+#     "go"
+#     "crystal"
+#     "php"
+#     "jre-openjdk-headless"
+# )
+
+# fonts
 packages+=(
     "ttf-dejavu"
     "ttf-liberation"
@@ -225,7 +260,7 @@ packages+=(
     "capitaine-cursors"
 )
 
-# Microcode
+# microcode
 CPU=$(grep vendor_id /proc/cpuinfo)
 if [[ $CPU == *"AuthenticAMD"* ]]; then
     print "An AMD CPU has been detected, the AMD microcode will be installed."
@@ -237,7 +272,7 @@ fi
 
 arch-chroot /mnt pacman -S $microcode --noconfirm --needed
 
-# Graphics Drivers find and install
+# graphics drivers find and install
 if lspci | grep -E "NVIDIA|GeForce"; then
     arch-chroot /mnt pacman -S nvidia nvidia-utils --noconfirm --needed
     nvidia-xconfig
@@ -247,7 +282,7 @@ if lspci | grep -E "NVIDIA|GeForce"; then
     arch-chroot /mnt pacman -S libva-intel-driver libvdpau-va-gl lib32-vulkan-intel vulkan-intel libva-intel-driver libva-utils --noconfirm --needed
 fi
 
-# Virtualization Check
+# virtualization check
 hypervisor=$(systemd-detect-virt)
 case $hypervisor in
     kvm )   print "KVM has been detected."
@@ -280,7 +315,7 @@ case $hypervisor in
     * ) ;;
 esac
 
-# Install each package with pacstrap /mnt
+# install each package with pacstrap /mnt
 for package in "${packages[@]}"; do
     print "Installing $package"
     arch-chroot /mnt pacman -S "$package" --noconfirm --needed
@@ -354,7 +389,6 @@ arch-chroot /mnt useradd -m -G wheel -s /bin/zsh xminent
 print "Setting xminent password"
 arch-chroot /mnt sudo -u root /bin/zsh -c 'echo "Insert xminent password: " && read xminent_password && echo -e "$xminent_password\n$xminent_password" | passwd xminent'
 
-
 # installing grub
 print "Installing grub"
 if [[ -d "/sys/firmware/efi" ]]; then # if UEFI
@@ -370,25 +404,24 @@ arch-chroot /mnt grub-mkconfig -o /boot/grub/grub.cfg
 # print "Changing governor to performance"
 # arch-chroot /mnt echo "governor='performance'" >> /mnt/etc/default/cpupower
 
-# print "Installing yay"
-# arch-chroot /mnt sudo -u xminent git clone https://aur.archlinux.org/yay.git /home/xminent/yay_tmp_install
-# arch-chroot /mnt sudo -u xminent /bin/zsh -c "cd /home/xminent/yay_tmp_install && yes | makepkg -si"
-# arch-chroot /mnt rm -rf /home/xminent/yay_tmp_install
+print "Installing yay"
+arch-chroot /mnt sudo -u xminent git clone https://aur.archlinux.org/yay.git /home/xminent/yay_tmp_install
+arch-chroot /mnt sudo -u xminent /bin/zsh -c "cd /home/xminent/yay_tmp_install && yes | makepkg -si"
+arch-chroot /mnt rm -rf /home/xminent/yay_tmp_install
 
-# userpackages=()
+userpackages=()
 
-# userpackages+=(
-#     "sddm-nordic-theme-git"
-#     "kwin-bismuth"
-# )
+userpackages+=(
+    "papirus-icon-theme-git"
+    "nerd-fonts-fira-code"
+    "shell-color-scripts"
+)
 
-# # installing user packages
-# for package in "${userpackages[@]}"; do
-#     print "Installing $package"
-#     arch-chroot /mnt yay -S "$package" --noconfirm --needed
-# done
-
-
+# installing user packages
+for package in "${userpackages[@]}"; do
+    print "Installing $package"
+    arch-chroot /mnt yay -S "$package" --noconfirm --needed
+done
 
 # making services start at boot
 print "Making services start at boot"
@@ -402,24 +435,35 @@ fi
 
 arch-chroot /mnt systemctl enable NetworkManager.service
 arch-chroot /mnt systemctl enable lightdm.service
-# arch-chroot /mnt systemctl enable sddm.service
-
-# print "Setting up SDDM Theme"
-# arch-chroot /mnt sudo /bin/zsh -c "cat <<EOF > /etc/sddm.conf
-# [Theme]
-# Current=Nordic
-# EOF
-# "
-# press_any_key
-
 arch-chroot /mnt systemctl enable cronie.service
 arch-chroot /mnt systemctl enable sshd.service
 arch-chroot /mnt systemctl enable fstrim.timer
 arch-chroot /mnt systemctl enable ufw.service
 
 # installing oh-my-zsh
-# print "Installing oh-my-zsh"
-# arch-chroot /mnt sudo -u xminent /bin/zsh -c 'cd ~ && curl -O https://raw.githubusercontent.com/robbyrussell/oh-my-zsh/master/tools/install.sh && chmod +x install.sh && RUNZSH=no ./install.sh && rm ./install.sh'
+print "Installing oh-my-zsh"
+arch-chroot /mnt sudo -u xminent /bin/zsh -c 'cd ~ && curl -O https://raw.githubusercontent.com/robbyrussell/oh-my-zsh/master/tools/install.sh && chmod +x install.sh && RUNZSH=no ./install.sh && rm ./install.sh'
+
+# installing powerlevel10k
+print "Installing powerlevel10k"
+arch-chroot /mnt sudo -u xminent /bin/zsh -c "cd ~ && git clone https://github.com/romkatv/powerlevel10k.git $ZSH_CUSTOM/themes/powerlevel10k"
+
+# add "colorscript random" to top of .zshrc
+print "Adding 'colorscript random' to top of .zshrc"
+arch-chroot /mnt sudo -u xminent /bin/zsh -c "sed -i '1s/^/colorscript random\n/' /home/xminent/.zshrc"
+
+# install zsh-autosuggestions
+print "Installing zsh-autosuggestions"
+
+arch-chroot /mnt sudo -u xminent /bin/zsh -c "cd ~ && git clone https://github.com/zsh-users/zsh-autosuggestions ${ZSH_CUSTOM:-~/.oh-my-zsh/custom}/plugins/zsh-autosuggestions"
+
+# install zsh-syntax-highlighting
+print "Installing zsh-syntax-highlighting"
+arch-chroot /mnt sudo -u xminent /bin/zsh -c "cd ~ && git clone https://github.com/zsh-users/zsh-syntax-highlighting.git ${ZSH_CUSTOM:-~/.oh-my-zsh/custom}/plugins/zsh-syntax-highlighting"
+
+# install colorls with ruby
+print "Installing colorls with ruby"
+arch-chroot /mnt sudo -u xminent /bin/zsh -c "cd ~ && gem install colorls"
 
 # create folder for screenshots
 print "Creating folder for screenshots"
@@ -431,37 +475,30 @@ arch-chroot /mnt sudo -u xminent mkdir /home/xminent/Pictures/
 arch-chroot /mnt sudo -u xminent mkdir /home/xminent/.secrets/
 arch-chroot /mnt sudo -u xminent mkdir /home/xminent/Pictures/wallpapers/
 
-# Create a new file called plasma-i3.desktop in the /usr/share/xsessions directory as su.
-# print "Setting up i3 and plasma to work together"
-# arch-chroot /mnt sudo /bin/zsh -c "mkdir -p /usr/share/xsessions"
-# arch-chroot /mnt sudo /bin/zsh -c "cat <<EOF > /usr/share/xsessions/plasma-i3.desktop
-# [Desktop Entry]
-# Type=XSession
-# Exec=env KDEWM=/usr/bin/i3 /usr/bin/startplasma-x11 kde-splash-screen --disable
-# DesktopNames=KDE
-# Name=plasma-i3
-# Comment=Plasma with i3
-# EOF
-# "
-# press_any_key
-
-# setup autologin for sddm using new session
-# print "Setting up autologin for sddm"
-# arch-chroot /mnt sudo /bin/zsh -c "mkdir -p /etc/sddm.conf.d"
-# arch-chroot /mnt sudo /bin/zsh -c "cat <<EOF > /etc/sddm.conf.d/autologin.conf
-# [Autologin]
-# User=xminent
-# Session=plasma-i3
-# EOF
-# "
-
-
 # enable features on /etc/pacman.conf file
 print "Enable features on /etc/pacman.conf file"
 arch-chroot /mnt sed -i -e 's/#UseSyslog/UseSyslog/g' /etc/pacman.conf
 arch-chroot /mnt sed -i -e 's/#Color/Color/g' /etc/pacman.conf
 arch-chroot /mnt sed -i -e 's/#TotalDownload/TotalDownload/g' /etc/pacman.conf
 arch-chroot /mnt sed -i -e 's/#VerbosePkgLists/VerbosePkgLists/g' /etc/pacman.conf
+
+# unload the pcspkr module
+print "Blacklist the pcspkr module"
+arch-chroot /mnt sudo -u xminent /bin/zsh -c 'echo "blacklist pcspkr" >> /etc/modprobe.d/nobeep.conf'
+
+if [ $desktop_env == "xfce" ]; then
+    # customize xfce4
+    # changing cursor theme
+    arch-chroot /mnt sudo -u xminent /bin/zsh -c 'xfconf-query -c xsettings -p /Gtk/CursorThemeName -s "capitaine-cursors"'
+    # changing system font
+    arch-chroot /mnt sudo -u xminent /bin/zsh -c 'xfconf-query -c xsettings -p /Gtk/FontName -s "Noto Sans 10"'
+    # changing wallpaper
+    arch-chroot /mnt sudo -u xminent /bin/zsh -c 'xfconf-query -c xfce4-desktop -p /backdrop/screen0/monitor0/image-path -s "/home/xminent/Pictures/wallpapers/zangetsu.png"'
+    # disable compositing
+    arch-chroot /mnt sudo -u xminent /bin/zsh -c 'xfconf-query -c xfwm4 -p /general/use_compositing -s false'
+    # add picom to startup applications
+    arch-chroot /mnt sudo -u xminent /bin/zsh -c 'xfconf-query -c xfce4-session -p /sessions/xfce4-session/screen0/monitor0/workspace0/last-application -s picom'
+fi
 
 # unmounting all mounted partitions
 print "Unmounting all mounted partitions"
