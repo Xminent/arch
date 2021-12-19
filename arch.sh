@@ -121,7 +121,7 @@ print "1. KDE Plasma"
 print "2. XFCE"
 
 # set the user's choice of desktop environment
-read -rp "Enter your choice [1-3]: " de_choice
+read -rp "Enter your choice [1-2]: " de_choice
 
 # essential packages (pacman)
 packages=()
@@ -168,11 +168,12 @@ case "${de_choice}" in
 esac
 
 # greeter and display manager
+# "lightdm"
+#     "lightdm-gtk-greeter"
+#     "lightdm-gtk-greeter-settings"
+#     "accountsservice"
 packages+=(
-    "lightdm"
-    "lightdm-gtk-greeter"
-    "lightdm-gtk-greeter-settings"
-    "accountsservice"
+    "sddm"
     "picom"
 )
 
@@ -235,16 +236,17 @@ packages+=(
     "hwinfo"
 )
 
-# languages
-# packages+=(
-#     "ruby"
-#     "nodejs"
-#     "python"
-#     "go"
-#     "crystal"
-#     "php"
-#     "jre-openjdk-headless"
-# )
+languages
+packages+=(
+    "ruby"
+    "nodejs"
+    "python"
+    "python-pip"
+    "go"
+    "crystal"
+    "php"
+    "jre-openjdk-headless"
+)
 
 # fonts
 packages+=(
@@ -434,7 +436,8 @@ if [[ -f "/mnt/etc/dhcpcd.conf" ]]; then
 fi
 
 arch-chroot /mnt systemctl enable NetworkManager.service
-arch-chroot /mnt systemctl enable lightdm.service
+# arch-chroot /mnt systemctl enable lightdm.service
+arch-chroot /mnt systemctl enable sddm.service
 arch-chroot /mnt systemctl enable cronie.service
 arch-chroot /mnt systemctl enable sshd.service
 arch-chroot /mnt systemctl enable fstrim.timer
@@ -448,10 +451,6 @@ arch-chroot /mnt sudo -u xminent /bin/zsh -c 'cd ~ && curl -O https://raw.github
 print "Installing powerlevel10k"
 arch-chroot /mnt sudo -u xminent /bin/zsh -c "cd ~ && git clone https://github.com/romkatv/powerlevel10k.git $ZSH_CUSTOM/themes/powerlevel10k"
 
-# add "colorscript random" to top of .zshrc
-print "Adding 'colorscript random' to top of .zshrc"
-arch-chroot /mnt sudo -u xminent /bin/zsh -c "sed -i '1s/^/colorscript random\n/' /home/xminent/.zshrc"
-
 # install zsh-autosuggestions
 print "Installing zsh-autosuggestions"
 
@@ -463,7 +462,14 @@ arch-chroot /mnt sudo -u xminent /bin/zsh -c "cd ~ && git clone https://github.c
 
 # install colorls with ruby
 print "Installing colorls with ruby"
-arch-chroot /mnt sudo -u xminent /bin/zsh -c "cd ~ && gem install colorls"
+# check if ruby is installed
+if [[ -f "/mnt/usr/bin/ruby" ]]; then
+    print "Ruby is installed"
+    arch-chroot /mnt sudo -u xminent /bin/zsh -c "cd ~ && gem install colorls"
+    # add "colorscript random" to top of .zshrc
+    print "Adding 'colorscript random' to top of .zshrc"
+    arch-chroot /mnt sudo -u xminent /bin/zsh -c "sed -i '1s/^/colorscript random\n/' /home/xminent/.zshrc"
+fi
 
 # create folder for screenshots
 print "Creating folder for screenshots"
