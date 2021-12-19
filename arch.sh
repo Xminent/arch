@@ -4,25 +4,24 @@
 clear
 
 # pretty print
-print () {
+print() {
     echo -e "\e[1m\e[93m[ \e[92m•\e[93m ] \e[4m$1\e[0m"
 }
 
 # press any key to continue ...
 # was useful for debugging but considering removal.
-press_any_key () {
+press_any_key() {
     print "Press any key to continue ..."
     read -n 1 -s -r
     clear
 }
 
 # username prompt
-username_prompt () {
+username_prompt() {
     print "Enter your username: "
     read -r username
     # check if the username is a valid username
-    if ! [[ $username =~ ^[a-z_][a-z0-9_-]*$ ]]
-    then
+    if ! [[ $username =~ ^[a-z_][a-z0-9_-]*$ ]]; then
         print "The username you entered is not a valid username."
         username_prompt
     fi
@@ -53,13 +52,13 @@ pacman -S fzf --noconfirm
 selected_disk=$(sudo fdisk -l | grep 'Disk /dev/' | awk '{print $2,$3,$4}' | sed 's/,$//' | fzf | sed -e 's/\/dev\/\(.*\):/\1/' | awk '{print $1}')
 
 # disk prep
-sgdisk -Z /dev/"${selected_disk}" # zap all on disk
+sgdisk -Z /dev/"${selected_disk}"         # zap all on disk
 sgdisk -a 2048 -o /dev/"${selected_disk}" # new gpt disk 2048 alignment
 
 # create partitions
-sgdisk -n 1::+1M --typecode=1:ef02 --change-name=1:'BIOSBOOT' /dev/"${selected_disk}" # partition 1 (BIOS Boot Partition)
+sgdisk -n 1::+1M --typecode=1:ef02 --change-name=1:'BIOSBOOT' /dev/"${selected_disk}"  # partition 1 (BIOS Boot Partition)
 sgdisk -n 2::+100M --typecode=2:ef00 --change-name=2:'EFIBOOT' /dev/"${selected_disk}" # partition 2 (UEFI Boot Partition)
-sgdisk -n 3::-0 --typecode=3:8300 --change-name=3:'ROOT' /dev/"${selected_disk}" # partition 3 (Root), default start, remaining
+sgdisk -n 3::-0 --typecode=3:8300 --change-name=3:'ROOT' /dev/"${selected_disk}"       # partition 3 (Root), default start, remaining
 if [[ ! -d "/sys/firmware/efi" ]]; then
     sgdisk -A 1:set:2 /dev/"${selected_disk}"
 fi
@@ -107,7 +106,7 @@ print "Finished installing base system."
 
 # generating fstab
 print "Generating fstab"
-genfstab -U /mnt >> /mnt/etc/fstab
+genfstab -U /mnt >>/mnt/etc/fstab
 
 if [[ ! -d "/sys/firmware/efi" ]]; then # if not UEFI
     print "Detected BIOS"
@@ -151,52 +150,91 @@ packages+=(
 )
 
 case "${de_choice}" in
-    1)
-        # install kde plasma
-        print "Installing KDE Plasma"
-        packages+=(
-            "plasma-meta"
-            "plasma-desktop"
-            "plasma-nm"
-        )
-        desktop_env="kde"
-        ;;
-    # case 2: xfce
-    2)
-        # install xfce
-        print "Installing XFCE"
-        packages+=(
-            "xfce4"
-            "xfce4-goodies"
-        )
-        desktop_env="xfce"
-        ;;
-    3)
-        # no desktop environment
-        desktop_env="none"
-        ;;
-    *)
-        # default to kde plasma
-        packages+=(
-            "plasma-meta"
-            "plasma-desktop"
-            "plasma-nm"
-        )
-        ;;
+1)
+    # install kde plasma
+    print "Installing KDE Plasma"
+    packages+=(
+        "plasma-meta"
+        "plasma-desktop"
+        "plasma-nm"
+    )
+    desktop_env="kde"
+    ;;
+# case 2: xfce
+2)
+    # install xfce
+    print "Installing XFCE"
+    packages+=(
+        "xfce4"
+        "xfce4-goodies"
+    )
+    desktop_env="xfce"
+    ;;
+3)
+    # no desktop environment
+    desktop_env="none"
+    ;;
+*)
+    # default to kde plasma
+    packages+=(
+        "plasma-meta"
+        "plasma-desktop"
+        "plasma-nm"
+    )
+    desktop_env="kde"
+    ;;
 esac
-
-# greeter and display manager
-# "lightdm"
-#     "lightdm-gtk-greeter"
-#     "lightdm-gtk-greeter-settings"
-#     "accountsservice"
 
 # if desktop_env is not equal to "none"
 if [[ "${desktop_env}" != "none" ]]; then
-    packages+=(
-        "sddm"
-        "picom"
-    )
+    # prompt the user for their desired display manager
+    print "Please select your desired display manager:"
+    print "1. LightDM"
+    print "2. SDDM (Recommended if using KDE)"
+    print "3. None (You want an install without a display manager)"
+
+    # set the user's choice of display manager
+    read -rp "Enter your choice [1-3]: " dm_choice
+
+    # install display manager
+    case "${dm_choice}" in
+    1)
+        # install lightdm
+        print "Installing LightDM"
+        packages+=(
+            "lightdm"
+            "lightdm-gtk-greeter"
+            "lightdm-gtk-greeter-settings"
+            "accountsservice"
+        )
+        ;;
+    2)
+        # install sddm
+        print "Installing SDDM"
+        packages+=(
+            "sddm"
+        )
+        ;;
+    3)
+        # no display manager
+        ;;
+    *)
+        # default to lightdm
+        packages+=(
+            "lightdm"
+            "lightdm-gtk-greeter"
+            "lightdm-gtk-greeter-settings"
+            "accountsservice"
+        )
+        ;;
+    esac
+
+    # if dm_choice is equal to 1 or 2
+    if [[ "${dm_choice}" == "1" || "${dm_choice}" == "2" ]]; then
+        packages+=(
+            "picom"
+        )
+    fi
 fi
 
 # base system installation
@@ -300,43 +338,47 @@ arch-chroot /mnt pacman -S $microcode --noconfirm --needed
 if lspci | grep -E "NVIDIA|GeForce"; then
     arch-chroot /mnt pacman -S nvidia nvidia-utils --noconfirm --needed
     nvidia-xconfig
-    elif lspci | grep -E "Radeon"; then
+elif lspci | grep -E "Radeon"; then
     arch-chroot /mnt pacman -S xf86-video-amdgpu --noconfirm --needed
-    elif lspci | grep -E "Integrated Graphics Controller"; then
+elif lspci | grep -E "Integrated Graphics Controller"; then
     arch-chroot /mnt pacman -S libva-intel-driver libvdpau-va-gl lib32-vulkan-intel vulkan-intel libva-intel-driver libva-utils --noconfirm --needed
 fi
 
 # virtualization check
 hypervisor=$(systemd-detect-virt)
 case $hypervisor in
-    kvm )   print "KVM has been detected."
-        print "Installing guest tools."
-        pacstrap /mnt qemu-guest-agent
-        print "Enabling specific services for the guest tools."
-        systemctl enable qemu-guest-agent --root=/mnt &>/dev/null
+kvm)
+    print "KVM has been detected."
+    print "Installing guest tools."
+    pacstrap /mnt qemu-guest-agent
+    print "Enabling specific services for the guest tools."
+    systemctl enable qemu-guest-agent --root=/mnt &>/dev/null
     ;;
-    vmware  )   print "VMWare Workstation/ESXi has been detected."
-        print "Installing guest tools."
-        pacstrap /mnt open-vm-tools xf86-input-libinput xf86-video-vmware xf86-input-vmmouse
-        print "Enabling specific services for the guest tools."
-        systemctl enable vmtoolsd --root=/mnt &>/dev/null
-        systemctl enable vmware-vmblock-fuse --root=/mnt &>/dev/null
+vmware)
+    print "VMWare Workstation/ESXi has been detected."
+    print "Installing guest tools."
+    pacstrap /mnt open-vm-tools xf86-input-libinput xf86-video-vmware xf86-input-vmmouse
+    print "Enabling specific services for the guest tools."
+    systemctl enable vmtoolsd --root=/mnt &>/dev/null
+    systemctl enable vmware-vmblock-fuse --root=/mnt &>/dev/null
     ;;
-    oracle )    print "VirtualBox has been detected."
-        print "Installing guest tools."
-        pacstrap /mnt virtualbox-guest-utils
-        print "Enabling specific services for the guest tools."
-        systemctl enable vboxservice --root=/mnt &>/dev/null
+oracle)
+    print "VirtualBox has been detected."
+    print "Installing guest tools."
+    pacstrap /mnt virtualbox-guest-utils
+    print "Enabling specific services for the guest tools."
+    systemctl enable vboxservice --root=/mnt &>/dev/null
     ;;
-    microsoft ) print "Hyper-V has been detected."
-        print "Installing guest tools."
-        pacstrap /mnt hyperv
-        print "Enabling specific services for the guest tools."
-        systemctl enable hv_fcopy_daemon --root=/mnt &>/dev/null
-        systemctl enable hv_kvp_daemon --root=/mnt &>/dev/null
-        systemctl enable hv_vss_daemon --root=/mnt &>/dev/null
+microsoft)
+    print "Hyper-V has been detected."
+    print "Installing guest tools."
+    pacstrap /mnt hyperv
+    print "Enabling specific services for the guest tools."
+    systemctl enable hv_fcopy_daemon --root=/mnt &>/dev/null
+    systemctl enable hv_kvp_daemon --root=/mnt &>/dev/null
+    systemctl enable hv_vss_daemon --root=/mnt &>/dev/null
     ;;
-    * ) ;;
+*) ;;
 esac
 
 # install each package with pacstrap /mnt
@@ -372,22 +414,22 @@ arch-chroot /mnt locale-gen
 
 # setting system language
 print "Setting system language"
-arch-chroot /mnt echo "LANG=en_US.UTF-8" >> /mnt/etc/locale.conf
+arch-chroot /mnt echo "LANG=en_US.UTF-8" >>/mnt/etc/locale.conf
 
 # setting machine name
 print "Enter a name for your machine: "
 read -r hostname
-arch-chroot /mnt echo "$hostname" >> /mnt/etc/hostname
+arch-chroot /mnt echo "$hostname" >>/mnt/etc/hostname
 
 {
-    arch-chroot /mnt echo "127.0.0.1 localhost" 
+    arch-chroot /mnt echo "127.0.0.1 localhost"
     arch-chroot /mnt echo "::1 localhost"
     arch-chroot /mnt echo "127.0.1.1 $hostname.localdomain $hostname"
-} >> /mnt/etc/hosts
+} >>/mnt/etc/hosts
 
 # Configuring /etc/mkinitcpio.conf.
 print "Configuring /etc/mkinitcpio.conf."
-arch-chroot /mnt cat > /mnt/etc/mkinitcpio.conf <<EOF
+arch-chroot /mnt cat >/mnt/etc/mkinitcpio.conf <<EOF
 HOOKS=(base systemd autodetect keyboard sd-vconsole modconf block sd-encrypt filesystems)
 COMPRESSION=(zstd)
 EOF
@@ -432,7 +474,7 @@ arch-chroot /mnt grub-mkconfig -o /boot/grub/grub.cfg
 
 # changing governor to performance
 print "Changing governor to performance"
-arch-chroot /mnt echo "governor='performance'" >> /mnt/etc/default/cpupower
+arch-chroot /mnt echo "governor='performance'" >>/mnt/etc/default/cpupower
 
 print "Installing yay"
 arch-chroot /mnt sudo -u "$username" git clone https://aur.archlinux.org/yay.git /home/"$username"/yay_tmp_install
