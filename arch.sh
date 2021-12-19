@@ -408,7 +408,7 @@ arch-chroot /mnt mkinitcpio -p linux
 # setting root password
 print "Enter root password: "
 read -r root_password
-arch-chroot /mnt sudo -u root /bin/zsh -c "echo -e ""$root_password$(printf '\n')$root_password"" | passwd root"
+arch-chroot /mnt sudo -u root /bin/zsh -c "echo -e $root_password'\n'$root_password | passwd root"
 
 # prompt the user for a username
 username_prompt
@@ -420,7 +420,7 @@ arch-chroot /mnt useradd -m -G wheel -s /bin/zsh "$username"
 # setting $username password
 print "Enter password for $username: "
 read -r user_password
-arch-chroot /mnt sudo -u root /bin/zsh -c "echo -e ""$user_password$(printf '\n')$user_password"" | passwd $username"
+arch-chroot /mnt sudo -u root /bin/zsh -c "echo -e $user_password'\n'$user_password | passwd $username"
 
 # installing grub
 print "Installing grub"
