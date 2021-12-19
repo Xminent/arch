@@ -5,7 +5,7 @@ Simple Bash script I'm working on that will install Arch Linux for you along wit
 ## How to use
 
 First, boot into the Arch Linux live environment from the [Arch Linux image](https://www.archlinux.org/download/).
-Then make sure you have Internet connection as this will be necessary for the downloading of the programs.
+Then make sure you have an Internet connection as this will be necessary for the downloading of the programs.
 You can then download and run script running the following command:
 `bash <(curl -sL bit.ly/31zj9mi)`
 There will be some prompts during the script's runtime to customize the install to your liking.

@@ -15,6 +15,18 @@ press_any_key () {
     clear
 }
 
+# username prompt
+username_prompt () {
+    print "Enter your username: "
+    read -r username
+    # check if the username is a valid username
+    if ! [[ $username =~ ^[a-z_][a-z0-9_-]*$ ]]
+    then
+        print "The username you entered is not a valid username."
+        username_prompt
+    fi
+}
+
 print "░█████╗░██████╗░░█████╗░██╗░░██╗"
 print "██╔══██╗██╔══██╗██╔══██╗██║░░██║"
 print "███████║██████╔╝██║░░╚═╝███████║"
@@ -342,7 +354,7 @@ print "Enabling font presets"
 arch-chroot /mnt ln -s /etc/fonts/conf.avail/70-no-bitmaps.conf /etc/fonts/conf.d
 arch-chroot /mnt ln -s /etc/fonts/conf.avail/10-sub-pixel-rgb.conf /etc/fonts/conf.d
 arch-chroot /mnt ln -s /etc/fonts/conf.avail/11-lcdfilter-default.conf /etc/fonts/conf.d
-arch-chroot /mnt zsh -c "$(echo 'export FREETYPE_PROPERTIES="truetype:interpreter-version=38"' >> /etc/profile.d/freetype2.sh)"
+arch-chroot /mnt zsh -c 'echo "export FREETYPE_PROPERTIES='truetype:interpreter-version=38'" >> /etc/profile.d/freetype2.sh)'
 
 # synchronizing timer
 print "Synchronizing system clock"
@@ -366,10 +378,15 @@ print "Setting machine name"
 arch-chroot /mnt echo "archvm" >> /mnt/etc/hostname
 
 # setting hosts file
-print "Setting hosts file"
-arch-chroot /mnt echo "127.0.0.1 localhost" >> /mnt/etc/hosts
-arch-chroot /mnt echo "::1 localhost" >> /mnt/etc/hosts
-arch-chroot /mnt echo "127.0.1.1 archvm.localdomain archvm" >> /mnt/etc/hosts
+# print "Setting hosts file"
+# arch-chroot /mnt echo "127.0.0.1 localhost" >> /mnt/etc/hosts
+# arch-chroot /mnt echo "::1 localhost" >> /mnt/etc/hosts
+# arch-chroot /mnt echo "127.0.1.1 archvm.localdomain archvm" >> /mnt/etc/hosts
+{
+    arch-chroot /mnt echo "127.0.0.1 localhost" 
+    arch-chroot /mnt echo "::1 localhost"
+    arch-chroot /mnt echo "127.0.1.1 archvm.localdomain archvm"
+} >> /mnt/etc/hosts
 
 # Configuring /etc/mkinitcpio.conf.
 print "Configuring /etc/mkinitcpio.conf."
@@ -389,16 +406,21 @@ arch-chroot /mnt sed -i -e 's/block filesystems/block lvm2 filesystems/g' /etc/m
 arch-chroot /mnt mkinitcpio -p linux
 
 # setting root password
-print "Setting root password"
-arch-chroot /mnt sudo -u root /bin/zsh -c 'echo "Insert root password: " && read root_password && echo -e "$root_password\n$root_password" | passwd root'
+print "Enter root password: "
+read -r root_password
+arch-chroot /mnt sudo -u root /bin/zsh -c "echo -e ""$root_password$(printf '\n')$root_password"" | passwd root"
 
-# making user xminent
-print "Making user xminent"
-arch-chroot /mnt useradd -m -G wheel -s /bin/zsh xminent
+# prompt the user for a username
+username_prompt
 
-# setting xminent password
-print "Setting xminent password"
-arch-chroot /mnt sudo -u root /bin/zsh -c 'echo "Insert xminent password: " && read xminent_password && echo -e "$xminent_password\n$xminent_password" | passwd xminent'
+# making user $username
+print "Making user $username"
+arch-chroot /mnt useradd -m -G wheel -s /bin/zsh "$username"
+
+# setting $username password
+print "Enter password for $username: "
+read -r user_password
+arch-chroot /mnt sudo -u root /bin/zsh -c "echo -e ""$user_password$(printf '\n')$user_password"" | passwd $username"
 
 # installing grub
 print "Installing grub"
@@ -416,9 +438,9 @@ arch-chroot /mnt grub-mkconfig -o /boot/grub/grub.cfg
 # arch-chroot /mnt echo "governor='performance'" >> /mnt/etc/default/cpupower
 
 print "Installing yay"
-arch-chroot /mnt sudo -u xminent git clone https://aur.archlinux.org/yay.git /home/xminent/yay_tmp_install
-arch-chroot /mnt sudo -u xminent /bin/zsh -c "cd /home/xminent/yay_tmp_install && yes | makepkg -si"
-arch-chroot /mnt rm -rf /home/xminent/yay_tmp_install
+arch-chroot /mnt sudo -u "$username" git clone https://aur.archlinux.org/yay.git /home/"$username"/yay_tmp_install
+arch-chroot /mnt sudo -u "$username" /bin/zsh -c "cd /home/$username/yay_tmp_install && yes | makepkg -si"
+arch-chroot /mnt rm -rf /home/"$username"/yay_tmp_install
 
 userpackages=()
 
@@ -431,7 +453,7 @@ userpackages+=(
 # installing user packages
 for package in "${userpackages[@]}"; do
     print "Installing $package"
-    arch-chroot /mnt sudo -u xminent /bin/zsh -c "yay -S $package --noconfirm --needed"
+    arch-chroot /mnt sudo -u "$username" /bin/zsh -c "yay -S $package --noconfirm --needed"
     press_any_key
 done
 
@@ -460,45 +482,45 @@ arch-chroot /mnt systemctl enable ufw.service
 
 # installing oh-my-zsh
 print "Installing oh-my-zsh"
-arch-chroot /mnt sudo -u xminent /bin/zsh -c 'cd ~ && curl -O https://raw.githubusercontent.com/robbyrussell/oh-my-zsh/master/tools/install.sh && chmod +x install.sh && RUNZSH=no ./install.sh && rm ./install.sh'
+arch-chroot /mnt sudo -u "$username" /bin/zsh -c 'cd ~ && curl -O https://raw.githubusercontent.com/robbyrussell/oh-my-zsh/master/tools/install.sh && chmod +x install.sh && RUNZSH=no ./install.sh && rm ./install.sh'
 
 # installing powerlevel10k
 print "Installing powerlevel10k"
-arch-chroot /mnt sudo -u xminent /bin/zsh -c "cd ~ && git clone https://github.com/romkatv/powerlevel10k.git $ZSH_CUSTOM/themes/powerlevel10k"
+arch-chroot /mnt sudo -u "$username" /bin/zsh -c "cd ~ && git clone https://github.com/romkatv/powerlevel10k.git $ZSH_CUSTOM/themes/powerlevel10k"
 
 press_any_key
 
 # install zsh-autosuggestions
 print "Installing zsh-autosuggestions"
 
-arch-chroot /mnt sudo -u xminent /bin/zsh -c "cd ~ && git clone https://github.com/zsh-users/zsh-autosuggestions ${ZSH_CUSTOM:-~/.oh-my-zsh/custom}/plugins/zsh-autosuggestions"
+arch-chroot /mnt sudo -u "$username" /bin/zsh -c "cd ~ && git clone https://github.com/zsh-users/zsh-autosuggestions ${ZSH_CUSTOM:-~/.oh-my-zsh/custom}/plugins/zsh-autosuggestions"
 
 # install zsh-syntax-highlighting
 print "Installing zsh-syntax-highlighting"
-arch-chroot /mnt sudo -u xminent /bin/zsh -c "cd ~ && git clone https://github.com/zsh-users/zsh-syntax-highlighting.git ${ZSH_CUSTOM:-~/.oh-my-zsh/custom}/plugins/zsh-syntax-highlighting"
+arch-chroot /mnt sudo -u "$username" /bin/zsh -c "cd ~ && git clone https://github.com/zsh-users/zsh-syntax-highlighting.git ${ZSH_CUSTOM:-~/.oh-my-zsh/custom}/plugins/zsh-syntax-highlighting"
 
 # install colorls with ruby
 print "Installing colorls with ruby"
 
 # install colorls
-arch-chroot /mnt sudo -u xminent /bin/zsh -c "cd ~ && gem install colorls"
+arch-chroot /mnt sudo -u "$username" /bin/zsh -c "cd ~ && gem install colorls"
 
 # git clone the dotfiles
 print "Cloning dotfiles"
-arch-chroot /mnt sudo -u xminent /bin/zsh -c "cd ~ && git clone https://github.com/Xminent/arch.git"
+arch-chroot /mnt sudo -u "$username" /bin/zsh -c "cd ~ && git clone https://github.com/$username/arch.git"
 # copy dotfiles to home directory
 print "Copying dotfiles to home directory"
-arch-chroot /mnt sudo -u xminent /bin/zsh -c "cd ~ && cp -r arch/. ~/"
+arch-chroot /mnt sudo -u "$username" /bin/zsh -c "cd ~ && cp -r arch/. ~/"
 
 # create folder for screenshots
 print "Creating folder for screenshots"
-arch-chroot /mnt sudo -u xminent mkdir /home/xminent/Screenshots
+arch-chroot /mnt sudo -u "$username" mkdir /home/"$username"/Screenshots
 
 # create pictures folder, secrets folder, and wallpapers folder
 print "Creating pictures folder, secrets folder and wallpaper folder"
-arch-chroot /mnt sudo -u xminent mkdir /home/xminent/Pictures/
-arch-chroot /mnt sudo -u xminent mkdir /home/xminent/.secrets/
-arch-chroot /mnt sudo -u xminent mkdir /home/xminent/Pictures/wallpapers/
+arch-chroot /mnt sudo -u "$username" mkdir /home/"$username"/Pictures/
+arch-chroot /mnt sudo -u "$username" mkdir /home/"$username"/.secrets/
+arch-chroot /mnt sudo -u "$username" mkdir /home/"$username"/Pictures/wallpapers/
 
 # enable features on /etc/pacman.conf file
 print "Enable features on /etc/pacman.conf file"
@@ -511,29 +533,17 @@ arch-chroot /mnt sed -i -e 's/#VerbosePkgLists/VerbosePkgLists/g' /etc/pacman.co
 print "Blacklist the pcspkr module"
 arch-chroot /mnt sudo /bin/zsh -c 'echo "blacklist pcspkr" >> /etc/modprobe.d/nobeep.conf'
 
-if [ $desktop_env == "xfce" ]; then
-    # changing cursor theme
-    arch-chroot /mnt sudo -u xminent /bin/zsh -c 'xfconf-query -c xsettings -p /Gtk/CursorThemeName -s "capitaine-cursors"'
-    # changing system font
-    arch-chroot /mnt sudo -u xminent /bin/zsh -c 'xfconf-query -c xsettings -p /Gtk/FontName -s "Noto Sans 10"'
-    # changing wallpaper
-    arch-chroot /mnt sudo -u xminent /bin/zsh -c 'xfconf-query -c xfce4-desktop -p /backdrop/screen0/monitor0/image-path -s "/home/xminent/Pictures/wallpapers/zangetsu.png"'
-    # disable compositing
-    arch-chroot /mnt sudo -u xminent /bin/zsh -c 'xfconf-query -c xfwm4 -p /general/use_compositing -s false'
-    # add picom to startup applications
-    arch-chroot /mnt sudo -u xminent /bin/zsh -c 'xfconf-query -c xfce4-session -p /sessions/xfce4-session/screen0/monitor0/workspace0/last-application -s picom'
-
-elif [ $desktop_env == "kde" ]; then
+if [ $desktop_env == "kde" ]; then
     # install konsave using pip
     print "Installing konsave using pip"
-    arch-chroot /mnt sudo -u xminent /bin/zsh -c 'pip install konsave'
+    arch-chroot /mnt sudo -u "$username" /bin/zsh -c 'pip install konsave'
     # import konsave profile
     print "Importing konsave profile"
-    arch-chroot /mnt sudo -u xminent /bin/zsh -c 'konsave -i ~/xminent.knsv'
+    arch-chroot /mnt sudo -u "$username" /bin/zsh -c "konsave -i ~/$username.knsv"
     sleep 1
     # apply the profile
     print "Applying the profile"
-    arch-chroot /mnt sudo -u xminent /bin/zsh -c 'konsave -a xminent'
+    arch-chroot /mnt sudo -u "$username" /bin/zsh -c "konsave -a $username"
 fi
 
 # unmounting all mounted partitions
