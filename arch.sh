@@ -431,7 +431,7 @@ userpackages+=(
 # installing user packages
 for package in "${userpackages[@]}"; do
     print "Installing $package"
-    arch-chroot /mnt yay -S "$package" --noconfirm --needed
+    arch-chroot /mnt sudo -u xminent /bin/zsh -c "yay -S $package --noconfirm --needed"
     press_any_key
 done
 
