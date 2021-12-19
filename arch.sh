@@ -482,23 +482,18 @@ arch-chroot /mnt sudo -u "$username" /bin/zsh -c 'cd ~ && curl -O https://raw.gi
 
 # installing powerlevel10k
 print "Installing powerlevel10k"
-arch-chroot /mnt sudo -u "$username" /bin/zsh -c "cd ~ && git clone https://github.com/romkatv/powerlevel10k.git $ZSH_CUSTOM/themes/powerlevel10k"
-
-press_any_key
+arch-chroot /mnt sudo -u "$username" /bin/zsh -c "cd ~ && git clone https://github.com/romkatv/powerlevel10k.git ${ZSH_CUSTOM:-~/.oh-my-zsh/custom}/themes/powerlevel10k"
 
 # install zsh-autosuggestions
 print "Installing zsh-autosuggestions"
-
 arch-chroot /mnt sudo -u "$username" /bin/zsh -c "cd ~ && git clone https://github.com/zsh-users/zsh-autosuggestions ${ZSH_CUSTOM:-~/.oh-my-zsh/custom}/plugins/zsh-autosuggestions"
 
 # install zsh-syntax-highlighting
 print "Installing zsh-syntax-highlighting"
 arch-chroot /mnt sudo -u "$username" /bin/zsh -c "cd ~ && git clone https://github.com/zsh-users/zsh-syntax-highlighting.git ${ZSH_CUSTOM:-~/.oh-my-zsh/custom}/plugins/zsh-syntax-highlighting"
 
-# install colorls with ruby
-print "Installing colorls with ruby"
-
 # install colorls
+print "Installing colorls with ruby"
 arch-chroot /mnt sudo -u "$username" /bin/zsh -c "cd ~ && gem install colorls"
 
 # git clone the dotfiles
@@ -506,7 +501,7 @@ print "Cloning dotfiles"
 arch-chroot /mnt sudo -u "$username" /bin/zsh -c "cd ~ && git clone https://github.com/xminent/arch.git"
 # copy dotfiles to home directory
 print "Copying dotfiles to home directory"
-arch-chroot /mnt sudo -u "$username" /bin/zsh -c "cd ~ && cp -r arch/. ~/"
+arch-chroot /mnt sudo -u "$username" /bin/zsh -c "cp -r ~/arch/dotfiles/. ~/"
 
 # create folder for screenshots
 print "Creating folder for screenshots"
