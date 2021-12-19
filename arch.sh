@@ -570,15 +570,7 @@ if [ $desktop_env == "kde" ]; then
     # install konsave using pip
     print "Installing konsave using pip"
     arch-chroot /mnt sudo -u "$username" /bin/zsh -c 'pip install konsave'
-    # export ~/.local/bin for now
-    export PATH=$PATH:~/.local/bin
-    # import konsave profile
-    print "Importing konsave profile"
-    arch-chroot /mnt sudo -u "$username" /bin/zsh -c "konsave -i ~/xminent.knsv"
-    sleep 1
-    # apply the profile
-    print "Applying the profile"
-    arch-chroot /mnt sudo -u "$username" /bin/zsh -c "konsave -a xminent"
+    arch-chroot /mnt sudo -u "$username" /bin/zsh -c "export PATH=$PATH:~/.local/bin && konsave -i ~/xminent.knsv && konsave -a xminent "
 fi
 
 # unmounting all mounted partitions
